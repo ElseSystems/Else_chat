@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  SUPERVISOR
+  AGENT
+}
+
+enum ConversationStatus {
+  WAITING
+  ASSIGNED
+  RESOLVED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  STICKER
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model Tenant {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  plan      String       @default("starter")
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  users           User[]
+  departments     Department[]
+  instances       WhatsAppInstance[]
+  contacts        Contact[]
+  conversations   Conversation[]
+  messages        Message[]
+  quickReplies    QuickReply[]
+  internalNotes   InternalNote[]
+  auditLogs       AuditLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant              Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedConversations Conversation[] @relation("AssignedAgent")
+  internalNotes       InternalNote[]
+  auditLogs           AuditLog[]
+
+  @@index([tenantId])
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model WhatsAppInstance {
+  id             String   @id @default(cuid())
+  tenantId       String
+  name           String
+  evolutionName  String   @unique
+  phoneNumber    String?
+  status         String   @default("CREATED")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  tenantId    String
+  phone       String
+  name        String?
+  profilePic  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+}
+
+model Conversation {
+  id           String             @id @default(cuid())
+  tenantId     String
+  contactId    String
+  instanceId   String
+  departmentId String?
+  assignedToId String?
+  status       ConversationStatus @default(WAITING)
+  lastMessageAt DateTime          @default(now())
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact     Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  instance    WhatsAppInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  department  Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignedTo  User?            @relation("AssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages    Message[]
+  notes       InternalNote[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, assignedToId])
+  @@index([contactId, instanceId, status])
+}
+
+model Message {
+  id                 String           @id @default(cuid())
+  tenantId           String
+  conversationId     String
+  type               MessageType      @default(TEXT)
+  direction          MessageDirection
+  body               String?
+  mediaUrl           String?
+  mediaMimeType      String?
+  mediaFileName      String?
+  evolutionMessageId String?
+  senderUserId       String?
+  createdAt          DateTime         @default(now())
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, evolutionMessageId])
+  @@index([conversationId, createdAt])
+  @@index([tenantId])
+}
+
+model QuickReply {
+  id        String   @id @default(cuid())
+  tenantId  String
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model InternalNote {
+  id             String   @id @default(cuid())
+  tenantId       String
+  conversationId String
+  authorId       String
+  body           String
+  createdAt      DateTime @default(now())
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  tenantId       String
+  userId         String?
+  action         String
+  entityType     String
+  entityId       String
+  meta           Json?
+  createdAt      DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+}
