@@ -73,4 +73,7 @@ fi
 
 # Inicia a aplicação
 echo -e "${YELLOW}🚀 Iniciando aplicação...${NC}"
-exec yarn start 
+if [ -f dist/server.js ]; then
+  exec node dist/server.js
+fi
+exec npm start 

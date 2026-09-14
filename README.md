@@ -1,63 +1,40 @@
-# Else Chat
+# AtendeChat (código pronto)
 
-SaaS multi-empresa de multi-atendimento WhatsApp (estilo AtendeChat / Movedesk).
+Este repositório agora usa o código-fonte do **AtendeChat** em [`codatendechat-main/`](codatendechat-main/).
 
-- **API:** NestJS + Prisma + Socket.IO  
-- **Painel:** Next.js  
-- **WhatsApp:** Evolution API v2  
-- **Runtime:** Docker Compose (Ubuntu para `api` e `web`)
+## Subir local (Docker)
 
-## Isolamento
-
-| Papel | Fila | Próprias | Outras | Transferir |
-|-------|------|----------|--------|------------|
-| Atendente | Sim | Sim | Não | Sim (próprias) |
-| Supervisor / Admin | Sim | Sim | Sim | Sim |
-| Super-admin | Gestão de tenants | — | — | — |
-
-## Subir com Docker
+1. Abra o **Docker Desktop**
+2. Rode:
 
 ```bash
-cp .env.example .env
-docker compose up --build -d
+cd codatendechat-main
+chmod +x start-local.sh
+./start-local.sh
 ```
 
-Serviços:
+| Serviço | URL |
+|---------|-----|
+| Frontend | http://localhost:3001 |
+| Backend | http://localhost:3000 |
 
-| URL | Serviço |
-|-----|---------|
-| http://localhost:3000 | Painel |
-| http://localhost:3001 | API |
-| http://localhost:8080 | Evolution API |
+### Login (seed)
 
-### Contas seed
+- Email: `admin@admin.com`
+- Senha: `123456`
 
-| Usuário | Senha | Papel |
-|---------|-------|-------|
-| `super@elsechat.com` | `admin123` | Super-admin |
-| `admin@demo.com` | `admin123` | Admin tenant demo |
-| `supervisor@demo.com` | `agent123` | Supervisor |
-| `agente1@demo.com` | `agent123` | Atendente |
-| `agente2@demo.com` | `agent123` | Atendente |
+## Desenvolvimento sem rebuild completo
 
-## Desenvolvimento local (sem Docker da app)
+Alternativa mais leve (só infra no Docker):
 
-1. Suba só infra: `docker compose up -d postgres redis evolution`
-2. `cp .env.example .env` e ajuste `DATABASE_URL` / `EVOLUTION_API_URL` para `localhost`
-3. `npm install`
-4. `npm run build -w @else-chat/shared`
-5. `cd apps/api && npx prisma migrate deploy && npx ts-node --transpile-only prisma/seed.ts`
-6. `npm run dev:api` e `npm run dev:web`
+```bash
+cd codatendechat-main
+docker compose up -d postgres redis
+# configurar backend/.env apontando DB_HOST=localhost DB_PORT=5433 e REDIS_URI=redis://localhost:6380
+cd backend && npm install --legacy-peer-deps && npm run watch
+cd frontend && npm install --legacy-peer-deps && npm start
+```
 
-## Fluxo típico
+## AWS / produção
 
-1. Login como `admin@demo.com`
-2. **WhatsApp** → criar instância → escanear QR
-3. Cliente envia mensagem no WhatsApp → cai em **Aguardando**
-4. Atendente **pega** a conversa → só ele vê em **Minhas**
-5. Supervisor vê **Todas** e pode transferir
-6. Envie texto, imagem, áudio, vídeo ou documento pelo composer
-
-## AWS
-
-Veja [docs/aws-deploy.md](docs/aws-deploy.md) para arquitetura, custo estimado e passos de deploy (ECS/ECR/RDS/S3).
+O caminho oficial do fornecedor continua sendo Ubuntu 22.04 + aaPanel + instalador. O Compose local serve para desenvolver e adaptar o white-label.
