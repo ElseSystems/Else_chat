@@ -1,4 +1,4 @@
-# AtendeChat (código pronto)
+# Else_Chat (código pronto)
 
 Este repositório agora usa o código-fonte do **AtendeChat** em [`codatendechat-main/`](codatendechat-main/).
 
